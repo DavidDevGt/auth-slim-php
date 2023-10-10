@@ -15,7 +15,7 @@ return function (App $app) {
 
     $app->group('', function (App $app) use ($pdo) {
         // Ruta para el registro de usuarios
-        $app->post('/register', function (Request $request, Response $response )use ($pdo) {
+        $app->post('/register', function (Request $request, Response $response) use ($pdo) {
             // Recibir los datos del usuario (como mínimo, email y contraseña)
             $data = $request->getParsedBody();
             $email = $data['email'] ?? '';
@@ -39,9 +39,9 @@ return function (App $app) {
                 'message' => 'Usuario registrado exitosamente'
             ]);
         });
-    
+
         // Ruta para iniciar sesión
-        $app->post('/login', function (Request $request, Response $response) use ($pdo){
+        $app->post('/login', function (Request $request, Response $response) use ($pdo) {
             // Datos de inicio de sesion
             $data = $request->getParsedBody();
             $email = $data['email'] ?? '';
@@ -70,33 +70,75 @@ return function (App $app) {
             ]);
         });
     })->add(new AuthMiddleware()); // Aquí se aplica el middleware de autenticación a las rutas del grupo
-    
+
     // Ruta para restablecer la contraseña
     $app->post('/password-reset', function (Request $request, Response $response) use ($pdo) {
-        // Recibir el correo electrónico del usuario
+        // Recibir el correo del usuario
         $data = $request->getParsedBody();
         $email = $data['email'] ?? '';
 
-        // Validar el correo electrónico
+        // Validar el email
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return $response->withStatus(400)->withJson([
-                'message' => 'Correo inválido'
-            ]);
+            return $response->withStatus(400)->withJson(['error' => 'Email inválido']);
         }
 
-        // Generar un token para el restablecimiento de la contraseña
+        // Generar un token para el usuario
         $token = bin2hex(random_bytes(32));
-        
-        // Normalmente, esto implicará enviar un correo electrónico al usuario con un token
-        // que luego pueda usar para cambiar su contraseña
-        return $response;
+
+        // Guardar el token en la base de datos con una validez de 15 minutos
+        $validUntil = new DateTime();
+        $validUntil->modify('+15 minutes'); // Añadir 15 minutos a la hora actual
+        $formattedValidUntil = $validUntil->format('Y-m-d H:i:s'); // Formatear para MySQL datetime
+
+        $stmt = $pdo->prepare("UPDATE users SET reset_token = :token, reset_token_valid_until = :valid_until WHERE email = :email");
+        $stmt->bindParam(':token', $token);
+        $stmt->bindParam(':valid_until', $formattedValidUntil);
+        $stmt->bindParam(':email', $email);
+        $stmt->execute();
+
+        // Enviar el token al usuario vía correo electrónico
+        $to = $email;
+        $subject = "Restablecimiento de Contraseña";
+        $message = "Tu token para restablecer la contraseña es: $token. Este token es válido por 15 minutos.";
+        $headers = "From: webmaster@example.com";
+
+        if (mail($to, $subject, $message, $headers)) {
+            return $response->withJson(['message' => 'Token generado y enviado por correo electrónico.']);
+        } else {
+            return $response->withStatus(500)->withJson(['error' => 'No se pudo enviar el correo.']);
+        }
     });
-    
+
     // Ruta para cambiar la contraseña con el token de restablecimiento
-    $app->post('/password-reset/{token}', function (Request $request, Response $response, array $args) {
-        // Implementar la lógica de cambio de contraseña aquí
-        // Aquí deberás permitir al usuario establecer una nueva contraseña, utilizando el token
-        // que ha recibido por correo electrónico para verificar su identidad
-        return $response;
+    $app->post('/password-reset/{token}', function (Request $request, Response $response, array $args) use ($pdo) {
+        // Recibir el nuevo password y el token desde la ruta
+        $data = $request->getParsedBody();
+        $newPassword = $data['password'] ?? '';
+        $token = $args['token'] ?? '';
+
+        // Validar los datos
+        if (empty($newPassword) || empty($token)) {
+            return $response->withStatus(400)->withJson(['error' => 'Datos inválidos']);
+        }
+
+        // Encontrar al usuario por el token
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE reset_token = :token");
+        $stmt->bindParam(':token', $token);
+        $stmt->execute();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Si el usuario no se encuentra, retornar un error
+        if (!$user) {
+            return $response->withStatus(400)->withJson(['error' => 'Token inválido']);
+        }
+
+        // Actualizar la contraseña del usuario
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+        $stmt = $pdo->prepare("UPDATE users SET password = :password, reset_token = NULL WHERE id = :id");
+        $stmt->bindParam(':password', $hashedPassword);
+        $stmt->bindParam(':id', $user['id']);
+        $stmt->execute();
+
+        return $response->withJson(['message' => 'Contraseña actualizada.']);
     });
 };
