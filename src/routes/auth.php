@@ -1,21 +1,17 @@
 <?php
 
-use Middleware\AuthMiddleware;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\App;
-use PDO;
+use Slim\Routing\RouteCollectorProxy;
+use Psr\Container\ContainerInterface;
 
-return function (App $app) {
-
-    $container = $app->getContainer();
-
-    $dbSettings = $container->get('settings')['db'];
-    $pdo = new PDO("mysql:host=" . $dbSettings['host'] . ";dbname=" . $dbSettings['database'], $dbSettings['username'], $dbSettings['password']);
-
-    $app->group('', function (App $app) use ($pdo) {
+return function (App $app, ContainerInterface $container) {
+    $app->group('/auth', function (RouteCollectorProxy $group) use ($container) {
         // Ruta para el registro de usuarios
-        $app->post('/register', function (Request $request, Response $response) use ($pdo) {
+        $group->post('/register', function (Request $request, Response $response) use ($container) {
+            $pdo = $container->get('pdo');
+
             // Recibir los datos del usuario (como mínimo, email y contraseña)
             $data = $request->getParsedBody();
             $email = $data['email'] ?? '';
@@ -24,6 +20,17 @@ return function (App $app) {
             if (!filter_var($email, FILTER_VALIDATE_EMAIL) || empty($password)) {
                 return $response->withStatus(400)->withJson([
                     'message' => 'Datos inválidos'
+                ]);
+            }
+
+            // Verificar si el correo electrónico ya está registrado
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE email = :email");
+            $stmt->bindParam(':email', $email);
+            $stmt->execute();
+
+            if ($stmt->fetch(PDO::FETCH_ASSOC)) {
+                return $response->withStatus(400)->withJson([
+                    'message' => 'El correo electrónico ya está registrado'
                 ]);
             }
 
@@ -41,7 +48,9 @@ return function (App $app) {
         });
 
         // Ruta para iniciar sesión
-        $app->post('/login', function (Request $request, Response $response) use ($pdo) {
+        $group->post('/login', function (Request $request, Response $response) use ($container) {
+            $pdo = $container->get('pdo');
+
             // Datos de inicio de sesion
             $data = $request->getParsedBody();
             $email = $data['email'] ?? '';
@@ -72,7 +81,9 @@ return function (App $app) {
     })->add(new AuthMiddleware()); // Aquí se aplica el middleware de autenticación a las rutas del grupo
 
     // Ruta para restablecer la contraseña
-    $app->post('/password-reset', function (Request $request, Response $response) use ($pdo) {
+    $app->post('/password-reset', function (Request $request, Response $response) use ($container) {
+        $pdo = $container->get('pdo');
+
         // Recibir el correo del usuario
         $data = $request->getParsedBody();
         $email = $data['email'] ?? '';
@@ -110,7 +121,9 @@ return function (App $app) {
     });
 
     // Ruta para cambiar la contraseña con el token de restablecimiento
-    $app->post('/password-reset/{token}', function (Request $request, Response $response, array $args) use ($pdo) {
+    $app->post('/password-reset/{token}', function (Request $request, Response $response, array $args) use ($container) {
+        $pdo = $container->get('pdo');
+
         // Recibir el nuevo password y el token desde la ruta
         $data = $request->getParsedBody();
         $newPassword = $data['password'] ?? '';

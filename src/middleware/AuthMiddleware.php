@@ -1,4 +1,5 @@
 <?php
+
 namespace Middleware;
 
 use Psr\Http\Message\ResponseInterface as Response;
@@ -14,8 +15,7 @@ class AuthMiddleware
 
         // Se valida si existe una cabecera de autorización
         if (!isset($headers['Authorization'])) {
-            $response = new \Slim\Psr7\Response();
-            return $response->withStatus(401);
+            return $handler->handle($request)->withStatus(401);
         }
 
         // Se obtiene el token de la cabecera
@@ -24,9 +24,7 @@ class AuthMiddleware
 
         // Se valida el token de autorización
         if ($token !== 'TOKEN_SECRETO') {
-            // Se crea una respuesta con estado 403 (Prohibido) si el token es inválido
-            $response = new \Slim\Psr7\Response();
-            return $response->withStatus(403);
+            return $handler->handle($request)->withStatus(403);
         }
 
         return $handler->handle($request);

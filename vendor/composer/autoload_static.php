@@ -52,7 +52,10 @@ class ComposerStaticInit4a36f6666f5c063fd9ea0f6cdbeb9ef5
             'Psr\\Http\\Message\\' => 17,
             'Psr\\Container\\' => 14,
             'Psr\\Clock\\' => 10,
-            'PhpDocReader\\' => 13,
+        ),
+        'M' => 
+        array (
+            'Middleware\\' => 11,
         ),
         'L' => 
         array (
@@ -158,8 +161,8 @@ class ComposerStaticInit4a36f6666f5c063fd9ea0f6cdbeb9ef5
         ),
         'Psr\\Http\\Message\\' => 
         array (
-            0 => __DIR__ . '/..' . '/psr/http-message/src',
-            1 => __DIR__ . '/..' . '/psr/http-factory/src',
+            0 => __DIR__ . '/..' . '/psr/http-factory/src',
+            1 => __DIR__ . '/..' . '/psr/http-message/src',
         ),
         'Psr\\Container\\' => 
         array (
@@ -169,9 +172,9 @@ class ComposerStaticInit4a36f6666f5c063fd9ea0f6cdbeb9ef5
         array (
             0 => __DIR__ . '/..' . '/psr/clock/src',
         ),
-        'PhpDocReader\\' => 
+        'Middleware\\' => 
         array (
-            0 => __DIR__ . '/..' . '/php-di/phpdoc-reader/src/PhpDocReader',
+            0 => __DIR__ . '/../..' . '/src/middleware',
         ),
         'Laravel\\SerializableClosure\\' => 
         array (
@@ -183,8 +186,8 @@ class ComposerStaticInit4a36f6666f5c063fd9ea0f6cdbeb9ef5
         ),
         'Illuminate\\Support\\' => 
         array (
-            0 => __DIR__ . '/..' . '/illuminate/macroable',
-            1 => __DIR__ . '/..' . '/illuminate/collections',
+            0 => __DIR__ . '/..' . '/illuminate/collections',
+            1 => __DIR__ . '/..' . '/illuminate/macroable',
             2 => __DIR__ . '/..' . '/illuminate/support',
         ),
         'Illuminate\\Database\\' => 
